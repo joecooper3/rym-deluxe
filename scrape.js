@@ -1,10 +1,9 @@
 import puppeteer from "puppeteer";
-import mongoose from "mongoose";
 import dotenv from "dotenv";
 import inquirer from "inquirer";
 
+import { addAllToDb, updateOnePage } from "./db.js";
 import { validateNum } from "./validators.js";
-import { Rating } from "./models.js";
 
 dotenv.config();
 
@@ -126,36 +125,17 @@ const scrapeData = async (startPage, endPage) => {
   return finalArr;
 };
 
-const addToDb = (data) => {
-  console.log("begin");
-  mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true });
-  const db = mongoose.connection;
-
-  db.on("error", console.error.bind(console, "connection error:"));
-  db.once("open", () => {
-    console.log("connection successful!");
-    Rating.insertMany(data, (err, res) => {
-      if (err) {
-        console.log(err);
-        return;
-      } else {
-        console.log("went through");
-        console.log(res);
-        return;
-      }
-    });
-  });
-
-  console.log("end of function");
-};
-
 const init = async (args) => {
   const deepScrape = args.includes("--deep");
 
   const cb = async (start, end) => {
     const data = await scrapeData(start, end);
     console.log(data);
-    addToDb(data);
+    if (deepScrape) {
+      addAllToDb(data);
+    } else {
+      updateOnePage(data);
+    }
   };
 
   if (deepScrape) {
