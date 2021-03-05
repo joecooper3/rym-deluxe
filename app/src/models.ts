@@ -1,5 +1,5 @@
-import mongoose from "mongoose";
-const { Schema } = mongoose;
+import { model, Model, Schema } from "mongoose";
+import { IRating } from "./interfaces";
 
 const playLinkSchema = new Schema({
   spotify: String,
@@ -43,4 +43,4 @@ const ratingSchema = new Schema(
   { timestamps: true }
 );
 
-export const Rating = mongoose.model("Rating", ratingSchema);
+export const Rating: Model<IRating> = model("Rating", ratingSchema);

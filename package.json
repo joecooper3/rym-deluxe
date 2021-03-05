@@ -1,23 +1,28 @@
 {
   "name": "rym-deluxe",
   "version": "1.0.0",
-  "type": "module",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "scrape": "node scrape.js",
-    "deep": "node scrape.js --deep",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "scrape": "ts-node app/src/app.ts --shallow",
+    "deep": "ts-node app/src/app.ts --deep"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/inquirer": "^7.3.1",
+    "@types/mongoose": "^5.10.3",
+    "@types/node": "^14.14.31",
+    "@types/puppeteer": "^5.4.3",
     "chalk": "^4.1.0",
-    "colors": "^1.4.0",
     "dotenv": "^8.2.0",
     "inquirer": "^7.3.3",
     "mongoose": "^5.11.16",
-    "puppeteer": "^7.1.0"
+    "nodemon": "^2.0.7",
+    "puppeteer": "^7.1.0",
+    "ts-node": "^9.1.1",
+    "typescript": "^4.2.2"
   }
 }

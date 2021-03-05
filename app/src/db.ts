@@ -1,15 +1,17 @@
-import mongoose from "mongoose";
+const chalk = require("chalk");
+import * as mongoose from "mongoose";
 
-import { Rating } from "./models.js";
+import { IRating } from "./interfaces";
+import { Rating } from "./models";
 
-export const addAllToDb = (data) => {
+export const addAllToDb = (data: IRating[]) => {
   mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true });
   const db = mongoose.connection;
 
   db.on("error", console.error.bind(console, "connection error:"));
   db.once("open", () => {
     console.log("connection successful!");
-    Rating.insertMany(data, (err, res) => {
+    (Rating as any).insertMany(data, (err: any, res: any) => {
       if (err) {
         console.log(err);
         return;
@@ -22,7 +24,7 @@ export const addAllToDb = (data) => {
   });
 };
 
-export const updateOnePage = async (data) => {
+export const updateOnePage = async (data: IRating[]) => {
   mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true });
   const db = mongoose.connection;
 
@@ -46,7 +48,9 @@ export const updateOnePage = async (data) => {
       } else {
         if (rating.score !== obj.score) {
           console.log(
-            `${obj.artistNames[0]} - ${obj.albumName} updated from ${rating.score} to ${obj.score}.`
+            `${obj.artistNames[0]} - ${obj.albumName} updated from ${chalk.red(
+              rating.score
+            )} to ${chalk.blue(obj.score)}.`
           );
           rating.score = obj.score;
           await rating.save();
