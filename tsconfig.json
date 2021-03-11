@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "target": "ESNext",
+    "jsx": "react",
     "noImplicitAny": true,
     "removeComments": true,
     "preserveConstEnums": true,
