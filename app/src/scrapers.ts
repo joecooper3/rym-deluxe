@@ -1,6 +1,6 @@
 import * as puppeteer from "puppeteer";
 
-import { IRating } from "./interfaces";
+import { IPlayLinks, IRating, AlbumPage, AlbumScrape } from "./interfaces";
 
 require("dotenv").config();
 
@@ -107,8 +107,7 @@ export const scrapeRecents = async (startPage: number, endPage: number) => {
           const year = (dateAddedCol.querySelector(
             ".date_element_year"
           ) as HTMLDivElement).innerText.trim();
-          const dateAddedMilliseconds = Date.parse(`${month} ${day}, ${year}`);
-          const dateAdded = new Date(dateAddedMilliseconds);
+          const dateAdded = Date.parse(`${month} ${day}, ${year}`);
 
           obj._id = id;
           obj.artistIds = artistIdsArr;
@@ -119,7 +118,7 @@ export const scrapeRecents = async (startPage: number, endPage: number) => {
           obj.releaseType = releaseType;
           obj.rymUrl = rymUrl;
           obj.score = score;
-          obj.dateAdded = dateAddedMilliseconds;
+          obj.dateAdded = dateAdded;
 
           return obj;
         };
@@ -136,4 +135,120 @@ export const scrapeRecents = async (startPage: number, endPage: number) => {
   }
   await browser.close();
   return finalArr;
+};
+
+export const scrapeAlbumPage = async (
+  rating: IRating
+): Promise<AlbumScrape> => {
+  const browser = await puppeteer.launch({ headless: false });
+  const url = process.env.ALBUM_PREFIX + rating.rymUrl;
+
+  const newPage = await browser.newPage();
+  await newPage.goto(url);
+  await newPage.waitForSelector(".release_descriptors", { timeout: 60000 });
+  newPage.on("console", (consoleObj) => console.log(consoleObj.text()));
+
+  const albumPageData = await newPage.evaluate(async (artistIds: number[]) => {
+    const playLinksContainer: HTMLDivElement = document.querySelector(
+      ".ui_media_links_container"
+    );
+
+    const playLinks: IPlayLinks = {
+      spotify: "",
+      youtube: "",
+      bandcamp: "",
+    };
+
+    if (playLinksContainer) {
+      const spotifyEl = playLinksContainer.querySelector(
+        ".ui_media_link_btn_spotify"
+      );
+      const spotifyLink = spotifyEl ? spotifyEl.getAttribute("href") : "";
+      const youtubeEl = playLinksContainer.querySelector(
+        ".ui_media_link_btn_youtube"
+      );
+      const youtubeLink = youtubeEl ? youtubeEl.getAttribute("href") : "";
+      const bandcampEl = playLinksContainer.querySelector(
+        ".ui_media_link_btn_bandcamp"
+      );
+      const bandcampLink = bandcampEl ? bandcampEl.getAttribute("href") : "";
+
+      playLinks.spotify = spotifyLink;
+      playLinks.youtube = youtubeLink;
+      playLinks.bandcamp = bandcampLink;
+    }
+
+    // if no artist ids, populate artist ids (will need for loop for array)
+    const artistUrls: string[] = [];
+    for (let i = 0; i < artistIds.length; i++) {
+      if (artistIds[i] === 0) {
+        const infoContainer: HTMLTableElement = document.querySelector(
+          ".album_info"
+        );
+        const artistLinks: NodeListOf<HTMLAnchorElement> = infoContainer.querySelectorAll(
+          ".artist"
+        );
+        const url: string = artistLinks[i].href;
+        artistUrls.push(url);
+      } else {
+        artistUrls.push(null);
+      }
+    }
+
+    const albumPageObj: AlbumPage = {
+      playLinks: playLinks,
+      artistUrls: artistUrls,
+    };
+    return albumPageObj;
+  }, rating.artistIds);
+
+  const getArtistIdsFromArr = async (
+    origIdArr: number[],
+    urlArr: string[]
+  ): Promise<number[]> => {
+    const idArr: number[] = [];
+    for (let i = 0; i < origIdArr.length; i++) {
+      if (origIdArr[i] === 0) {
+        const newId = await fetchArtistId(urlArr[i], browser);
+        idArr[i] = newId;
+      } else {
+        idArr[i] = origIdArr[i];
+      }
+    }
+    return idArr;
+  };
+
+  const updatedArtistIdArr: number[] = await getArtistIdsFromArr(
+    rating.artistIds,
+    albumPageData.artistUrls
+  );
+
+  await newPage.close();
+  await browser.close();
+
+  const finalObj: AlbumScrape = {
+    playLinks: albumPageData.playLinks,
+    artistIds: updatedArtistIdArr,
+  };
+
+  return finalObj;
+};
+
+export const fetchArtistId = async (
+  url: string,
+  browser?: puppeteer.Browser
+): Promise<number> => {
+  if (!browser) {
+    browser = await puppeteer.launch({ headless: false });
+  }
+  const artistPage = await browser.newPage();
+  await artistPage.goto(url);
+  await artistPage.bringToFront();
+  await artistPage.waitForSelector(".footer_inner");
+  const newArtistId: number = await artistPage.evaluate(async () => {
+    const shortcode: HTMLInputElement = document.querySelector(".rym_shortcut");
+    return parseInt(shortcode.value.replace(/[^0-9]/g, ""));
+  });
+  await artistPage.close();
+  return newArtistId;
 };

@@ -1,6 +1,6 @@
 import { Document } from "mongoose";
 
-interface IPlayLinks {
+export interface IPlayLinks {
   spotify: string,
   youtube: string,
   bandcamp: string
@@ -29,4 +29,14 @@ export interface IRating extends Document {
 export interface InquirerPages {
   start: number;
   end: number;
+}
+
+export interface AlbumPage {
+  playLinks: IPlayLinks,
+  artistUrls?: string[]
+}
+
+export interface AlbumScrape {
+  playLinks: IPlayLinks,
+  artistIds?: number[]
 }
