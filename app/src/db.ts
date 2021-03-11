@@ -1,7 +1,8 @@
 const chalk = require("chalk");
+const emoji = require("node-emoji");
 import * as mongoose from "mongoose";
 
-import { IRating } from "./interfaces";
+import { AlbumScrape, IRating } from "./interfaces";
 import { Rating } from "./models";
 
 export const addAllToDb = (data: IRating[]) => {
@@ -24,7 +25,7 @@ export const addAllToDb = (data: IRating[]) => {
   });
 };
 
-export const updateOnePage = async (data: IRating[]) => {
+export const mostRecentPageUpdate = async (data: IRating[]) => {
   mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true });
   const db = mongoose.connection;
 
@@ -58,4 +59,38 @@ export const updateOnePage = async (data: IRating[]) => {
       }
     });
   });
+};
+
+export const getRatingById = async (id: number): Promise<IRating> => {
+  mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true });
+  const db = mongoose.connection;
+  db.on("error", console.error.bind(console, "connection error:"));
+  db.once("open", async () => {
+    console.log("connection successful!");
+  });
+  const rating = await Rating.findById(id).exec();
+  db.close();
+  return rating;
+};
+
+export const addAlbumPageData = async (
+  id: number,
+  obj: AlbumScrape
+): Promise<void> => {
+  mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true });
+  const db = mongoose.connection;
+  db.on("error", console.error.bind(console, chalk.red("connection error:")));
+  db.once("open", async () => {
+    console.log("connection successful!");
+  });
+  const rating = await Rating.findById(id);
+  rating.artistIds = obj.artistIds;
+  rating.playLinks = obj.playLinks;
+  await rating.save();
+  console.log(
+    `${emoji.get("wind_chime")} ${chalk.green(
+      "Successfully updated artist IDs and play links for rating with ID"
+    )} ${chalk.cyan(id)} ${chalk.green(".")}`
+  );
+  db.close();
 };
