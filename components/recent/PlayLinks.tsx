@@ -34,7 +34,7 @@ const YouTube = ({ url }) => {
 const PlayLinks = ({ data }) => {
   const { bandcamp, spotify, youtube } = data;
   return <div>{spotify && <Spotify url={spotify} />}
-  {youtube && <YouTube url={spotify} />}</div>;
+  {youtube && <YouTube url={youtube} />}</div>;
 };
 
 export default PlayLinks;
