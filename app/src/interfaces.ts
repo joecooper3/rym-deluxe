@@ -1,14 +1,14 @@
 import { Document } from "mongoose";
 
 export interface IPlayLinks {
-  spotify: string,
-  youtube: string,
-  bandcamp: string
+  spotify: string;
+  youtube: string;
+  bandcamp: string;
 }
 
-interface IAlbumArt {
-  source: string,
-  url: string
+export interface IAlbumArt {
+  source: string;
+  url: string;
 }
 
 export interface IRating extends Document {
@@ -18,12 +18,12 @@ export interface IRating extends Document {
   albumName: string;
   genres: string[];
   releaseYear: number;
-  releaseType: string,
-  rymUrl: string,
-  playLinks: IPlayLinks,
-  score: number,
-  dateAdded: Date | Number,
-  albumArt: IAlbumArt
+  releaseType: string;
+  rymUrl: string;
+  playLinks: IPlayLinks;
+  score: number;
+  dateAdded: Date | Number;
+  albumArt: IAlbumArt;
 }
 
 export interface InquirerPages {
@@ -32,11 +32,13 @@ export interface InquirerPages {
 }
 
 export interface AlbumPage {
-  playLinks: IPlayLinks,
-  artistUrls?: string[]
+  playLinks: IPlayLinks;
+  artistUrls?: string[];
+  albumArtUrl?: string;
 }
 
 export interface AlbumScrape {
-  playLinks: IPlayLinks,
-  artistIds?: number[]
+  playLinks: IPlayLinks;
+  artistIds?: number[];
+  albumArt?: IAlbumArt;
 }

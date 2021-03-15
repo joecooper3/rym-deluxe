@@ -1,6 +1,13 @@
 import * as puppeteer from "puppeteer";
+const cloudinary = require("cloudinary").v2;
 
-import { IPlayLinks, IRating, AlbumPage, AlbumScrape } from "./interfaces";
+import {
+  IPlayLinks,
+  IAlbumArt,
+  IRating,
+  AlbumPage,
+  AlbumScrape,
+} from "./interfaces";
 
 require("dotenv").config();
 
@@ -140,7 +147,7 @@ export const scrapeRecents = async (startPage: number, endPage: number) => {
 export const scrapeAlbumPage = async (
   rating: IRating
 ): Promise<AlbumScrape> => {
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch({ headless: true });
   const url = process.env.ALBUM_PREFIX + rating.rymUrl;
 
   const newPage = await browser.newPage();
@@ -148,59 +155,83 @@ export const scrapeAlbumPage = async (
   await newPage.waitForSelector(".release_descriptors", { timeout: 60000 });
   newPage.on("console", (consoleObj) => console.log(consoleObj.text()));
 
-  const albumPageData = await newPage.evaluate(async (artistIds: number[]) => {
-    const playLinksContainer: HTMLDivElement = document.querySelector(
-      ".ui_media_links_container"
-    );
-
-    const playLinks: IPlayLinks = {
-      spotify: "",
-      youtube: "",
-      bandcamp: "",
-    };
-
-    if (playLinksContainer) {
-      const spotifyEl = playLinksContainer.querySelector(
-        ".ui_media_link_btn_spotify"
+  const albumPageData = await newPage.evaluate(
+    async (artistIds: number[], albumId: number) => {
+      // get play links (e.g. Spotify, YouTube, etc)
+      const playLinksContainer: HTMLDivElement = document.querySelector(
+        ".ui_media_links_container"
       );
-      const spotifyLink = spotifyEl ? spotifyEl.getAttribute("href") : "";
-      const youtubeEl = playLinksContainer.querySelector(
-        ".ui_media_link_btn_youtube"
-      );
-      const youtubeLink = youtubeEl ? youtubeEl.getAttribute("href") : "";
-      const bandcampEl = playLinksContainer.querySelector(
-        ".ui_media_link_btn_bandcamp"
-      );
-      const bandcampLink = bandcampEl ? bandcampEl.getAttribute("href") : "";
 
-      playLinks.spotify = spotifyLink;
-      playLinks.youtube = youtubeLink;
-      playLinks.bandcamp = bandcampLink;
-    }
+      const playLinks: IPlayLinks = {
+        spotify: "",
+        youtube: "",
+        bandcamp: "",
+      };
 
-    // if no artist ids, populate artist ids (will need for loop for array)
-    const artistUrls: string[] = [];
-    for (let i = 0; i < artistIds.length; i++) {
-      if (artistIds[i] === 0) {
-        const infoContainer: HTMLTableElement = document.querySelector(
-          ".album_info"
+      if (playLinksContainer) {
+        const spotifyEl = playLinksContainer.querySelector(
+          ".ui_media_link_btn_spotify"
         );
-        const artistLinks: NodeListOf<HTMLAnchorElement> = infoContainer.querySelectorAll(
-          ".artist"
+        const spotifyLink = spotifyEl ? spotifyEl.getAttribute("href") : "";
+        const youtubeEl = playLinksContainer.querySelector(
+          ".ui_media_link_btn_youtube"
         );
-        const url: string = artistLinks[i].href;
-        artistUrls.push(url);
-      } else {
-        artistUrls.push(null);
+        const youtubeLink = youtubeEl ? youtubeEl.getAttribute("href") : "";
+        const bandcampEl = playLinksContainer.querySelector(
+          ".ui_media_link_btn_bandcamp"
+        );
+        const bandcampLink = bandcampEl ? bandcampEl.getAttribute("href") : "";
+
+        playLinks.spotify = spotifyLink;
+        playLinks.youtube = youtubeLink;
+        playLinks.bandcamp = bandcampLink;
       }
-    }
 
-    const albumPageObj: AlbumPage = {
-      playLinks: playLinks,
-      artistUrls: artistUrls,
-    };
-    return albumPageObj;
-  }, rating.artistIds);
+      // get album art URL, upload to cloudinary account
+      let albumArtUrl: string = "";
+      const albumArtContainer: HTMLDivElement = document.querySelector(
+        `.coverart_${albumId}`
+      );
+
+      if (albumArtContainer) {
+        const imageEl: HTMLImageElement = albumArtContainer.querySelector(
+          "img"
+        );
+        albumArtUrl = "https:" + imageEl.getAttribute("src");
+      }
+
+      // if no artist ids, populate artist ids (will need for loop for array)
+      const artistUrls: string[] = [];
+      for (let i = 0; i < artistIds.length; i++) {
+        if (artistIds[i] === 0) {
+          const infoContainer: HTMLTableElement = document.querySelector(
+            ".album_info"
+          );
+          const artistLinks: NodeListOf<HTMLAnchorElement> = infoContainer.querySelectorAll(
+            ".artist"
+          );
+          const url: string = artistLinks[i].href;
+          artistUrls.push(url);
+        } else {
+          artistUrls.push(null);
+        }
+      }
+
+      const albumPageObj: AlbumPage = {
+        playLinks: playLinks,
+        artistUrls: artistUrls,
+        albumArtUrl: albumArtUrl,
+      };
+      return albumPageObj;
+    },
+    rating.artistIds,
+    rating._id
+  );
+
+  const imageObj: IAlbumArt = await uploadToCloudinary(
+    albumPageData.albumArtUrl,
+    "rym"
+  );
 
   const getArtistIdsFromArr = async (
     origIdArr: number[],
@@ -229,6 +260,7 @@ export const scrapeAlbumPage = async (
   const finalObj: AlbumScrape = {
     playLinks: albumPageData.playLinks,
     artistIds: updatedArtistIdArr,
+    albumArt: imageObj,
   };
 
   return finalObj;
@@ -251,4 +283,29 @@ export const fetchArtistId = async (
   });
   await artistPage.close();
   return newArtistId;
+};
+
+export const uploadToCloudinary = async (
+  url: string,
+  source: string
+): Promise<IAlbumArt> => {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_SECRET,
+  });
+  const cloudUpload = await cloudinary.uploader.upload(
+    url,
+    (err: any, res: any) => {
+      console.log(err, res);
+      if (res) {
+        return res;
+      }
+    }
+  );
+  const finalObj = {
+    source: source,
+    url: cloudUpload.secure_url,
+  };
+  return finalObj;
 };

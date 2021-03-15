@@ -4,6 +4,7 @@ import * as mongoose from "mongoose";
 
 import { AlbumScrape, IRating } from "./interfaces";
 import { Rating } from "./models";
+import { scrapeAlbumPage } from "./scrapers";
 
 export const addAllToDb = (data: IRating[]) => {
   mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true });
@@ -45,7 +46,10 @@ export const mostRecentPageUpdate = async (data: IRating[]) => {
             );
             console.log(res);
           }
+          return res;
         });
+        const updatedData = await scrapeAlbumPage(obj);
+        addAlbumPageData(obj._id, updatedData);
       } else {
         if (rating.score !== obj.score) {
           console.log(
@@ -56,6 +60,10 @@ export const mostRecentPageUpdate = async (data: IRating[]) => {
           rating.score = obj.score;
           await rating.save();
         }
+        // if (!rating?.playLinks?.spotify || !rating?.albumArt?.url) {
+        //   const updatedData = await scrapeAlbumPage(rating);
+        //   addAlbumPageData(rating._id, updatedData);
+        // }
       }
     });
   });
@@ -86,10 +94,11 @@ export const addAlbumPageData = async (
   const rating = await Rating.findById(id);
   rating.artistIds = obj.artistIds;
   rating.playLinks = obj.playLinks;
+  rating.albumArt = obj.albumArt;
   await rating.save();
   console.log(
     `${emoji.get("wind_chime")} ${chalk.green(
-      "Successfully updated artist IDs and play links for rating with ID"
+      "Successfully updated artist IDs, play links, and album art for rating with ID"
     )} ${chalk.cyan(id)} ${chalk.green(".")}`
   );
   db.close();
