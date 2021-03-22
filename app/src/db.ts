@@ -2,7 +2,7 @@ const chalk = require("chalk");
 const emoji = require("node-emoji");
 import * as mongoose from "mongoose";
 
-import { AlbumScrape, IRating } from "./interfaces";
+import { AlbumScrape, IRating, RecentsChanges } from "./interfaces";
 import { Rating } from "./models";
 import { scrapeAlbumPage } from "./scrapers";
 
@@ -26,47 +26,78 @@ export const addAllToDb = (data: IRating[]) => {
   });
 };
 
-export const mostRecentPageUpdate = async (data: IRating[]) => {
+export const mostRecentPageUpdate = async (data: RecentsChanges) => {
   mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true });
   const db = mongoose.connection;
+  const { newRatings, updatedScores, updatedRatings } = data;
 
   db.on("error", console.error.bind(console, "connection error:"));
   db.once("open", () => {
     console.log("connection successful!");
-    data.map(async (obj) => {
-      const rating = await Rating.findById(obj._id);
-
-      if (!rating) {
-        Rating.create(obj, (err, res) => {
-          if (err) {
-            console.log(err);
-          } else {
-            console.log(
-              `Added ${obj._id}: ${obj.artistNames[0]} - ${obj.albumName}`
-            );
-            console.log(res);
-          }
-          return res;
-        });
-        const updatedData = await scrapeAlbumPage(obj);
-        addAlbumPageData(obj._id, updatedData);
-      } else {
-        if (rating.score !== obj.score) {
-          console.log(
-            `${obj.artistNames[0]} - ${obj.albumName} updated from ${chalk.red(
-              rating.score
-            )} to ${chalk.blue(obj.score)}.`
-          );
-          rating.score = obj.score;
-          await rating.save();
-        }
-        // if (!rating?.playLinks?.spotify || !rating?.albumArt?.url) {
-        //   const updatedData = await scrapeAlbumPage(rating);
-        //   addAlbumPageData(rating._id, updatedData);
-        // }
-      }
-    });
   });
+  if (newRatings && newRatings.length > 0) {
+    newRatings.forEach(
+      async (rating: IRating): Promise<void> => {
+        try {
+          Rating.create(rating);
+          console.log(
+            chalk.green(
+              `Succesfully added ${rating.artistNames[0]} - ${rating.albumName}.`
+            )
+          );
+        } catch {
+          console.log(
+            chalk.red(
+              `Error trying to add ${rating.artistNames[0]} - ${rating.albumName}.`
+            )
+          );
+        }
+      }
+    );
+  }
+  if (updatedScores && updatedScores.length > 0) {
+    updatedScores.forEach(async (obj: { _id: number; score: number }) => {
+      const rating = await Rating.findById(obj._id);
+      console.log(
+        `${rating.artistNames[0]} - ${
+          rating.albumName
+        } updated from ${chalk.red(rating.score)} to ${chalk.blue(obj.score)}.`
+      );
+      rating.score = obj.score;
+      await rating.save();
+    });
+  }
+  if (updatedRatings && updatedRatings.length > 0) {
+    updatedRatings.forEach(async (obj) => {
+      const { art, playLinks, artistIds } = obj.options;
+      const rating = await Rating.findById(obj._id);
+      if (art) {
+        rating.albumArt = obj.albumArt;
+        console.log(
+          chalk.green(
+            `Updated album art for ${rating.artistNames[0]} - ${rating.albumName}.`
+          )
+        );
+      }
+      if (playLinks) {
+        rating.playLinks = obj.playLinks;
+        console.log(
+          chalk.green(
+            `Updated play links for ${rating.artistNames[0]} - ${rating.albumName}.`
+          )
+        );
+      }
+      if (artistIds) {
+        rating.artistIds = obj.artistIds;
+        console.log(
+          chalk.green(
+            `Updated album IDs for ${rating.artistNames[0]} - ${rating.albumName}.`
+          )
+        );
+      }
+      await rating.save();
+    });
+  }
 };
 
 export const getRatingById = async (id: number): Promise<IRating> => {
@@ -102,4 +133,17 @@ export const addAlbumPageData = async (
     )} ${chalk.cyan(id)} ${chalk.green(".")}`
   );
   db.close();
+};
+
+export const pullMostRecents = async (page: number = 1) => {
+  mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true });
+  const db = mongoose.connection;
+  db.on("error", console.error.bind(console, "connection error:"));
+  db.once("open", () => {
+    console.log("connection successful!");
+  });
+  const recents = await Rating.find().sort({ dateAdded: -1 }).limit(25);
+  console.log(`pinged recents`);
+  db.close();
+  return recents;
 };

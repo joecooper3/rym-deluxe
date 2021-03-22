@@ -9,7 +9,7 @@ import {
   addAlbumPageData,
 } from "./db";
 import { scrapeAlbumPage, scrapeRecents } from "./scrapers";
-import { IRating, InquirerPages } from "./interfaces";
+import { IRating, InquirerPages, RecentsChanges } from "./interfaces";
 import { validateNum } from "./validators";
 
 const init = async (args: string[]): Promise<void> => {
@@ -20,32 +20,33 @@ const init = async (args: string[]): Promise<void> => {
   console.log(args);
   if (shallowScrape) {
     const res = await scrapeRecents(1, 1);
+    console.log(res);
     mostRecentPageUpdate(res);
   }
   // NOTE: deep scrape untested in TypeScript
-  if (deepScrape) {
-    inquirer
-      .prompt([
-        {
-          type: "input",
-          name: "start",
-          message: "Start on which page?",
-          validate: validateNum,
-        },
-        {
-          type: "input",
-          name: "end",
-          message: "End on which page?",
-          validate: validateNum,
-        },
-      ])
-      .then((obj: InquirerPages) => {
-        return scrapeRecents(obj.start, obj.end);
-      })
-      .then((obj: IRating[]) => {
-        addAllToDb(obj);
-      });
-  }
+  // if (deepScrape) {
+  //   inquirer
+  //     .prompt([
+  //       {
+  //         type: "input",
+  //         name: "start",
+  //         message: "Start on which page?",
+  //         validate: validateNum,
+  //       },
+  //       {
+  //         type: "input",
+  //         name: "end",
+  //         message: "End on which page?",
+  //         validate: validateNum,
+  //       },
+  //     ])
+  //     .then((obj: InquirerPages) => {
+  //       return scrapeRecents(obj.start, obj.end);
+  //     })
+  //     .then((obj: IRating[]) => {
+  //       addAllToDb(obj);
+  //     });
+  // }
 
   if (albumPageScrape) {
     if (args.length !== 2) {
@@ -60,21 +61,21 @@ const init = async (args: string[]): Promise<void> => {
       const id = parseInt(args[1]);
       const rating: IRating = await getRatingById(id);
 
-      if (rating) {
-        console.log(
-          `${emoji.get(
-            "female_mage"
-          )} Beginning query of album page for ${chalk.cyan(rating.albumName)}`
-        );
-        const updatedData = await scrapeAlbumPage(rating);
-        addAlbumPageData(id, updatedData);
-      } else {
-        console.log(
-          emoji.get("oncoming_police_car") +
-            " " +
-            chalk.red(` No rating found for ID ${id}.`)
-        );
-      }
+      // if (rating) {
+      //   console.log(
+      //     `${emoji.get(
+      //       "female_mage"
+      //     )} Beginning query of album page for ${chalk.cyan(rating.albumName)}`
+      //   );
+      //   const updatedData = await scrapeAlbumPage(rating);
+      //   addAlbumPageData(id, updatedData);
+      // } else {
+      //   console.log(
+      //     emoji.get("oncoming_police_car") +
+      //       " " +
+      //       chalk.red(` No rating found for ID ${id}.`)
+      //   );
+      // }
     }
   }
 };
