@@ -13,6 +13,7 @@ import { IRating, InquirerPages, RecentsChanges } from "./interfaces";
 import { validateNum } from "./validators";
 
 const init = async (args: string[]): Promise<void> => {
+  console.log('come on!!!!')
   const shallowScrape = args.includes("--shallow");
   const deepScrape = args.includes("--deep");
   const albumPageScrape = args.includes("--album");

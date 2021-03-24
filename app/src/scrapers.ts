@@ -28,10 +28,11 @@ export const scrapeRecents = async (
   startPage: number,
   endPage: number
 ): Promise<RecentsChanges> => {
+  console.log('inside scrapeRecents')
   const MULTI_PAGE: boolean = endPage - startPage > 0;
   const recentPageArr = <IRating[]>[];
   // open the headless browser
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({ headless: true, executablePath: process.env.PUPPETEER_EXEC_PATH });
 
   for (let i = startPage; i <= endPage; i++) {
     const recentData = await scrapeRecentRows(i, browser);
@@ -183,7 +184,7 @@ export const scrapeAlbumPage = async (
     artistIds: boolean;
   }
 ): Promise<AlbumScrape> => {
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({ headless: true, executablePath: process.env.PUPPETEER_EXEC_PATH});
   const url = process.env.ALBUM_PREFIX + rating.rymUrl;
   console.log(
     `${rating.albumName} art: ${options.art}, artistIds: ${options.artistIds}, playLinks: ${options.playLinks}`
@@ -309,7 +310,7 @@ export const scrapeArtistPage = async (
   browser?: puppeteer.Browser
 ): Promise<number> => {
   if (!browser) {
-    browser = await puppeteer.launch({ headless: true });
+    browser = await puppeteer.launch({ headless: true, executablePath: process.env.PUPPETEER_EXEC_PATH });
   }
   const artistPage = await browser.newPage();
   artistPage.setDefaultNavigationTimeout(0); 
