@@ -31,7 +31,7 @@ export const scrapeRecents = async (
   const MULTI_PAGE: boolean = endPage - startPage > 0;
   const recentPageArr = <IRating[]>[];
   // open the headless browser
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch({ headless: true });
 
   for (let i = startPage; i <= endPage; i++) {
     const recentData = await scrapeRecentRows(i, browser);
@@ -67,17 +67,15 @@ export const scrapeRecents = async (
   }
 
   // assembles RecentChanges object
+  const newRatings: IRating[] = [];
   const needArtistIds: IRating[] = [];
   const needAlbumArt: IRating[] = [];
   const needPlayLinks: IRating[] = [];
-  recentPageArr.forEach((rating) => {
+
+  recentPageArr.forEach(async (rating) => {
     const inDb = dbData.find((dbRat) => dbRat._id === rating._id);
     if (!inDb) {
-      if (comprehensiveArr.hasOwnProperty("newRatings")) {
-        comprehensiveArr.newRatings.push(rating);
-      } else {
-        comprehensiveArr.newRatings = [rating];
-      }
+      newRatings.push(rating);
     } else {
       if (inDb.score !== rating.score) {
         const newScoreObj = { _id: rating._id, score: rating.score };
@@ -98,6 +96,31 @@ export const scrapeRecents = async (
       }
     }
   });
+
+  const populateNewRatings = async (arr: IRating[]): Promise<IRating[]> => {
+    const newArr: IRating[] = [];
+    const fetchNecessary = async (rating: IRating): Promise<AlbumScrape> => {
+      const options = {
+        art: true,
+        playLinks: true,
+        artistIds: true,
+      };
+      const scrapedData = await scrapeAlbumPage(rating, options);
+      return scrapedData;
+    };
+    for (let rating of arr) {
+      await fetchNecessary(rating).then(async (res: AlbumScrape) => {
+        await delay(30000);
+        console.log(chalk.cyan("just did a fetchNecessary"));
+        console.log(res);
+        rating.albumArt = res.albumArt;
+        rating.artistIds = res.artistIds;
+        rating.playLinks = res.playLinks;
+        newArr.push(rating);
+      });
+    }
+    return newArr;
+  };
 
   const fetchAlbumPageFields = async (
     artArr: IRating[],
@@ -134,6 +157,10 @@ export const scrapeRecents = async (
     return albumScrapeArr;
   };
 
+  if (newRatings.length > 0) {
+    comprehensiveArr.newRatings = await populateNewRatings(newRatings);
+  }
+
   const albumScrapeArrs = await fetchAlbumPageFields(
     needAlbumArt,
     needPlayLinks,
@@ -156,13 +183,14 @@ export const scrapeAlbumPage = async (
     artistIds: boolean;
   }
 ): Promise<AlbumScrape> => {
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch({ headless: true });
   const url = process.env.ALBUM_PREFIX + rating.rymUrl;
   console.log(
     `${rating.albumName} art: ${options.art}, artistIds: ${options.artistIds}, playLinks: ${options.playLinks}`
   );
 
   const newPage = await browser.newPage();
+  newPage.setDefaultNavigationTimeout(0); 
   await newPage.goto(url);
   await newPage.waitForSelector(".release_descriptors", { timeout: 60000 });
   newPage.on("console", (consoleObj) => console.log(consoleObj.text()));
@@ -281,9 +309,10 @@ export const scrapeArtistPage = async (
   browser?: puppeteer.Browser
 ): Promise<number> => {
   if (!browser) {
-    browser = await puppeteer.launch({ headless: false });
+    browser = await puppeteer.launch({ headless: true });
   }
   const artistPage = await browser.newPage();
+  artistPage.setDefaultNavigationTimeout(0); 
   await artistPage.goto(url);
   await artistPage.bringToFront();
   await artistPage.waitForSelector(".footer_inner", { timeout: 60000 });
@@ -345,6 +374,7 @@ const scrapeRecentRows = async (
   try {
     const newPage = await browser.newPage();
     // await newPage.goto(`${process.env.TEST_URL}`);
+    newPage.setDefaultNavigationTimeout(0); 
     await newPage.goto(`${process.env.RYM_URL}/${i}`);
     await newPage.waitForSelector(".footer_inner", { timeout: 60000 });
     // newPage.on("console", (consoleObj) => console.log(consoleObj.text()));
