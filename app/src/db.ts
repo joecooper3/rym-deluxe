@@ -1,10 +1,18 @@
+import * as mongoose from "mongoose";
 const chalk = require("chalk");
 const emoji = require("node-emoji");
-import * as mongoose from "mongoose";
 
-import { AlbumScrape, IRating, RecentsChanges } from "./interfaces";
+import { emojiLog } from "./utilities";
+
+import {
+  AlbumScrape,
+  IRating,
+  RecentsChanges,
+  ScoreUpdate,
+} from "./interfaces";
 import { Rating } from "./models";
 import { scrapeAlbumPage } from "./scrapers";
+import { asyncForEach } from "./utilities";
 
 export const addAllToDb = (data: IRating[]) => {
   mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true });
@@ -35,18 +43,23 @@ export const mostRecentPageUpdate = async (data: RecentsChanges) => {
   db.on("error", console.error.bind(console, "connection error:"));
   db.once("open", async () => {
     console.log("connection successful!");
-    console.log("let us see");
-    await addNewRatings();
-    await updateOldRatings();
+    await addNewRatings(newRatings);
+    await updateOldRatings(updatedScores, updatedRatings);
     await db.close();
   });
 
-  const addNewRatings = async () => {
-    if (newRatings && newRatings.length > 0) {
-      newRatings.forEach(
+  const addNewRatings = async (arr: IRating[]) => {
+    if (arr && arr.length > 0) {
+      emojiLog(
+        `Adding ${arr.length} new rating(s).`,
+        "fishing_pole_and_fish",
+        "cyan"
+      );
+      await asyncForEach(
+        arr,
         async (rating: IRating): Promise<void> => {
           try {
-            Rating.create(rating);
+            await Rating.create(rating);
             console.log(
               chalk.green(
                 `Succesfully added ${rating.artistNames[0]} - ${rating.albumName}.`
@@ -64,54 +77,69 @@ export const mostRecentPageUpdate = async (data: RecentsChanges) => {
     }
   };
 
-  const updateOldRatings = async () => {
-    console.log('updating old ratings')
-    if (updatedScores && updatedScores.length > 0) {
-      updatedScores.forEach(async (obj: { _id: number; score: number }) => {
-        const rating = await Rating.findById(obj._id);
-        console.log(
-          `${rating.artistNames[0]} - ${
-            rating.albumName
-          } updated from ${chalk.red(rating.score)} to ${chalk.blue(
-            obj.score
-          )}.`
+  const updateOldRatings = async (
+    scoreArr: ScoreUpdate[],
+    ratingArr: AlbumScrape[]
+  ) => {
+    const updateScores = async (arr: ScoreUpdate[]) => {
+      if (arr && arr.length > 0) {
+        emojiLog(`Updating ${arr.length} score(s).`, "medal", "cyan");
+        await asyncForEach(arr, async (obj: { _id: number; score: number }) => {
+          const rating = await Rating.findById(obj._id);
+          console.log(
+            `${rating.artistNames[0]} - ${
+              rating.albumName
+            } updated from ${chalk.red(rating.score)} to ${chalk.blue(
+              obj.score
+            )}.`
+          );
+          rating.score = obj.score;
+          await rating.save();
+        });
+      }
+    };
+    const updateRatings = async (arr: AlbumScrape[]) => {
+      if (updatedRatings && updatedRatings.length > 0) {
+        emojiLog(
+          `Adding ${arr.length} new ratings.`,
+          "admission_tickets",
+          "cyan"
         );
-        rating.score = obj.score;
-        await rating.save();
-      });
-    }
-    if (updatedRatings && updatedRatings.length > 0) {
-      updatedRatings.forEach(async (obj) => {
-        const { art, playLinks, artistIds } = obj.options;
-        const rating = await Rating.findById(obj._id);
-        if (art) {
-          rating.albumArt = obj.albumArt;
-          console.log(
-            chalk.green(
-              `Updated album art for ${rating.artistNames[0]} - ${rating.albumName}.`
-            )
-          );
-        }
-        if (playLinks) {
-          rating.playLinks = obj.playLinks;
-          console.log(
-            chalk.green(
-              `Updated play links for ${rating.artistNames[0]} - ${rating.albumName}.`
-            )
-          );
-        }
-        if (artistIds) {
-          rating.artistIds = obj.artistIds;
-          console.log(
-            chalk.green(
-              `Updated album IDs for ${rating.artistNames[0]} - ${rating.albumName}.`
-            )
-          );
-        }
-        await rating.save();
-        console.log('rating.save() here')
-      });
-    }
+        await asyncForEach(updatedRatings, async (obj: AlbumScrape) => {
+          const { art, playLinks, artistIds } = obj.options;
+          const rating = await Rating.findById(obj._id);
+          if (art) {
+            rating.albumArt = obj.albumArt;
+            console.log(
+              chalk.green(
+                `Updated album art for ${rating.artistNames[0]} - ${rating.albumName}.`
+              )
+            );
+          }
+          if (playLinks) {
+            rating.playLinks = obj.playLinks;
+            console.log(
+              chalk.green(
+                `Updated play links for ${rating.artistNames[0]} - ${rating.albumName}.`
+              )
+            );
+          }
+          if (artistIds) {
+            rating.artistIds = obj.artistIds;
+            console.log(
+              chalk.green(
+                `Updated album IDs for ${rating.artistNames[0]} - ${rating.albumName}.`
+              )
+            );
+          }
+          await rating.save();
+          console.log("rating.save() here");
+        });
+      }
+    };
+    await updateScores(scoreArr);
+    await updateRatings(ratingArr);
+    emojiLog("All ratings succesfully updated~!", "burrito", "green");
   };
 };
 

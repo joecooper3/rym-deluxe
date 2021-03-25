@@ -80,7 +80,7 @@ export const scrapeRecents = async (
     } else {
       if (inDb.score !== rating.score) {
         const newScoreObj = { _id: rating._id, score: rating.score };
-        if (comprehensiveArr.hasOwnProperty("updateScore")) {
+        if (comprehensiveArr.hasOwnProperty("updatedScores")) {
           comprehensiveArr.updatedScores.push(newScoreObj);
         } else {
           comprehensiveArr.updatedScores = [newScoreObj];

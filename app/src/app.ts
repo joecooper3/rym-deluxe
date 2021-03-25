@@ -21,6 +21,7 @@ const init = async (args: string[]): Promise<void> => {
   console.log(args);
   if (shallowScrape) {
     const res = await scrapeRecents(1, 1);
+    console.log(chalk.bgBlue('Sending the following to mostRecentPageUpdate:'))
     console.log(res);
     mostRecentPageUpdate(res);
   }

@@ -38,13 +38,18 @@ export interface AlbumPage {
 }
 
 export interface ScrapeOptions {
-  art: boolean,
-  playLinks: boolean,
-  artistIds: boolean
+  art: boolean;
+  playLinks: boolean;
+  artistIds: boolean;
+}
+
+export interface ScoreUpdate {
+  _id: number;
+  score: number;
 }
 
 export interface AlbumScrape {
-  _id: number,
+  _id: number;
   playLinks?: IPlayLinks;
   artistIds?: number[];
   albumArt?: IAlbumArt;
@@ -53,6 +58,6 @@ export interface AlbumScrape {
 
 export interface RecentsChanges {
   newRatings?: IRating[];
-  updatedScores?: { _id: number, score: number}[];
+  updatedScores?: { _id: number; score: number }[];
   updatedRatings?: AlbumScrape[];
 }
