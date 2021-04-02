@@ -13,6 +13,7 @@ import {
 import { Rating } from "./models";
 import { scrapeAlbumPage } from "./scrapers";
 import { asyncForEach } from "./utilities";
+import axios from "../../node_modules/axios/index";
 
 export const addAllToDb = (data: IRating[]) => {
   mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true });
@@ -139,7 +140,12 @@ export const mostRecentPageUpdate = async (data: RecentsChanges) => {
     };
     await updateScores(scoreArr);
     await updateRatings(ratingArr);
-    emojiLog("All ratings succesfully updated~!", "burrito", "green");
+    if (newRatings || updatedScores || updatedRatings) {
+      emojiLog("All ratings succesfully updated~!", "burrito", "green");
+      axios.post(process.env.NETLIFY_DEPLOY);
+    } else {
+      emojiLog("No ratings need to be updated.", "boar", "yellow");
+    }
   };
 };
 
