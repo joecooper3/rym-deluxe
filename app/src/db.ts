@@ -191,9 +191,12 @@ export const pullMostRecents = async (page: number = 1) => {
   db.once("open", () => {
     console.log("connection successful!");
   });
-  const recents = await Rating.find().sort({ dateAdded: -1 }).limit(25);
+  // TODO: integrate page number here
+  const recents = await Rating.find()
+    .sort({ dateAdded: -1 })
+    .skip((page - 1) * 25)
+    .limit(25);
   console.log(`pinged recents`);
   await db.close();
-  console.log(chalk.yellow(`db.close() should be a thing in pullMostRcents`));
   return recents;
 };
