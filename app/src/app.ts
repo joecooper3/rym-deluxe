@@ -11,17 +11,25 @@ import {
 import { scrapeAlbumPage, scrapeRecents } from "./scrapers";
 import { IRating, InquirerPages, RecentsChanges } from "./interfaces";
 import { validateNum } from "./validators";
+import { emojiLog } from "./utilities";
 
 const init = async (args: string[]): Promise<void> => {
-  console.log('come on!!!!')
   const shallowScrape = args.includes("--shallow");
   const deepScrape = args.includes("--deep");
   const albumPageScrape = args.includes("--album");
 
   console.log(args);
   if (shallowScrape) {
-    const res = await scrapeRecents(1, 1);
-    console.log(chalk.bgBlue('Sending the following to mostRecentPageUpdate:'))
+    const pageNum = args[1] ? parseInt(args[1]) : 1;
+    if (Number.isNaN(pageNum)) {
+      emojiLog(
+        "Please enter a valid number after npm run scrape.",
+        "cop",
+        "red"
+      );
+    }
+    const res = await scrapeRecents(pageNum, pageNum);
+    console.log(chalk.bgBlue("Sending the following to mostRecentPageUpdate:"));
     console.log(res);
     mostRecentPageUpdate(res);
   }
